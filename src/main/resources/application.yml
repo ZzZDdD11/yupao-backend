@@ -1,0 +1,38 @@
+spring:
+  profiles:
+    active: dev
+  application:
+    name: yupaobackend
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: root
+    password: 12345678
+    url: jdbc:mysql://localhost:3306/yupi
+  # redis 配置
+  data:
+    redis:
+      port: 6379
+      host: localhost
+      database: 0
+  # seesion配置
+  session:
+    timeout: 86400
+    store-type: redis
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+    session:
+      cookie:
+        domain: localhost
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: false
+  global-config:
+    db-config:
+      table-underline: true # 表名是否使用下划线命名，默认 true
+      logic-delete-field: flag
+      logic-not-delete-value: 0
+      logic-delete-value: 1
+
