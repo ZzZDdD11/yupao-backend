@@ -1,9 +1,9 @@
 package com.example.yupaobackend.service.impl;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.example.yupaobackend.mapper.UserTeamMapper;
 import com.example.yupaobackend.service.UserTeamService;
 import com.example.yupaobackend.model.domain.UserTeam;
-import com.example.yupaobackend.mapper.UserTeamMapper;
 import org.springframework.stereotype.Service;
 
 /**

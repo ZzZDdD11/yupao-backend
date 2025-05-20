@@ -1,17 +1,18 @@
-package com.example.yupaobackend.model.domain;
+package com.example.yupaobackend.model.dto;
 
-import com.baomidou.mybatisplus.annotation.*;
 
-import java.util.Date;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableLogic;
 import lombok.Data;
 
+import java.util.Date;
+
 /**
- * 队伍
- * @TableName team
+ * team查询封装类
  */
-@TableName(value ="team")
 @Data
-public class Team {
+public class TeamQuery {
     /**
      * id
      */
@@ -49,23 +50,10 @@ public class Team {
     private Integer status;
 
     /**
-     * 密码
-     */
-    private String password;
-
-    /**
      * 创建时间
      */
     private Date createTime;
 
-    /**
-     * 
-     */
-    private Date updateTime;
 
-    /**
-     * 是否删除
-     */
-    @TableLogic
-    private Integer isDelete;
+
 }

@@ -1,32 +1,21 @@
 package com.example.yupaobackend.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.yupaobackend.common.BaseResponse;
 import com.example.yupaobackend.common.ErrorCode;
 import com.example.yupaobackend.common.ResultUtils;
 import com.example.yupaobackend.exception.BusinessException;
 import com.example.yupaobackend.model.domain.Team;
-import com.example.yupaobackend.model.domain.User;
-import com.example.yupaobackend.model.request.UserLoginRequest;
-import com.example.yupaobackend.model.request.UserRegisterRequest;
+import com.example.yupaobackend.model.dto.TeamQuery;
 import com.example.yupaobackend.service.TeamService;
 import com.example.yupaobackend.service.UserService;
 import jakarta.annotation.Resource;
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.core.ValueOperations;
-import org.springframework.util.CollectionUtils;
+import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.*;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-
-import static com.example.yupaobackend.contant.UserConstant.ADMIN_ROLE;
-import static com.example.yupaobackend.contant.UserConstant.USER_LOGIN_STATE;
 
 /**
  * 用户接口
@@ -58,7 +47,7 @@ public class TeamController {
     }
     @PostMapping("/delete")
     public BaseResponse<Boolean> deleteTeam(@RequestBody Long id) {
-        if (id == null){
+        if (id <= 0){
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
         boolean result = teamService.removeById(id);
@@ -68,5 +57,39 @@ public class TeamController {
         return ResultUtils.success(true);
 
     }
+    @GetMapping("/get")
+    public BaseResponse<Team> getTeamById(@RequestParam("id") Long id) {
+        if(id <= 0){
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        Team team = teamService.getById(id);
+        if(team == null){
+            throw new BusinessException(ErrorCode.NULL_ERROR);
+        }
+        return ResultUtils.success(team);
+    }
 
+    @GetMapping("/list")
+    public BaseResponse<List<Team>> listTeam(TeamQuery teamQuery) {
+        if(teamQuery == null){
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        Team team = new Team();
+        BeanUtils.copyProperties(team, teamQuery);
+        QueryWrapper<Team> queryWrapper = new QueryWrapper<>(team);
+        List<Team> teamList = teamService.list(queryWrapper);
+        return ResultUtils.success(teamList);
+    }
+
+    @GetMapping("/list/page")
+    public BaseResponse<List<Team>> listTeamByPage(TeamQuery teamQuery) {
+        if(teamQuery == null){
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        Team team = new Team();
+        BeanUtils.copyProperties(team, teamQuery);
+        QueryWrapper<Team> queryWrapper = new QueryWrapper<>(team);
+        List<Team> teamList = teamService.list(queryWrapper);
+        return ResultUtils.success(teamList);
+    }
 }
