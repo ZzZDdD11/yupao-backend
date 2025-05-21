@@ -4,15 +4,18 @@ package com.example.yupaobackend.model.dto;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableLogic;
+import com.example.yupaobackend.common.pageRequest;
 import lombok.Data;
-
+import lombok.EqualsAndHashCode;
+import org.springframework.data.domain.PageRequest;
 import java.util.Date;
 
 /**
  * team查询封装类
  */
+@EqualsAndHashCode(callSuper = true)
 @Data
-public class TeamQuery {
+public class TeamQuery extends pageRequest {
     /**
      * id
      */

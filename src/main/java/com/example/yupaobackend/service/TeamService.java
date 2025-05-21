@@ -2,6 +2,7 @@ package com.example.yupaobackend.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.example.yupaobackend.model.domain.Team;
+import com.example.yupaobackend.model.domain.User;
 
 /**
 * @author hao
@@ -10,4 +11,11 @@ import com.example.yupaobackend.model.domain.Team;
 */
 public interface TeamService extends IService<Team> {
 
+    /**
+     * 创建队伍
+     * @param team
+     * @param loginUser
+     * @return
+     */
+    long addTeam(Team team, User loginUser);
 }
