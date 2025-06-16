@@ -34,6 +34,7 @@ public class preCacheJob {
     private RedisTemplate redisTemplate;
 
     List<Long> mainUserList = Arrays.asList(1L);
+
     @Autowired
     private RedissonClient redissonClient;
 
@@ -70,6 +71,8 @@ public class preCacheJob {
             }
         }
 
+
     }
+
 
 }

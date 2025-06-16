@@ -3,6 +3,7 @@ package com.example.yupaobackend.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.example.yupaobackend.common.ErrorCode;
+import com.example.yupaobackend.config.RedisTemplateConfig;
 import com.example.yupaobackend.exception.BusinessException;
 import com.example.yupaobackend.model.domain.User;
 import com.example.yupaobackend.service.UserService;
@@ -11,10 +12,13 @@ import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -37,6 +41,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
     private static final String SALT = "yupi";
 
 
+
+    @Resource
+    RedisTemplate redisTemplate;
 
     @Resource
     private UserMapper userMapper;
@@ -137,7 +144,22 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
 
         // 记录用户的登录态
         request.getSession().setAttribute(USER_LOGIN_STATE, user);
+        // 假设 user 为登录成功后的用户对象，并且已注入 redisTemplate
+        Map<String, Object> userInfoMap = new HashMap<>();
+        userInfoMap.put("id", user.getId());
+        userInfoMap.put("userAccount", user.getUserAccount());
+        userInfoMap.put("username", user.getUsername());
+        userInfoMap.put("avatarUrl", user.getAvatarUrl());
+        userInfoMap.put("gender", user.getGender());
+        userInfoMap.put("phone", user.getPhone());
+        userInfoMap.put("email", user.getEmail());
+        userInfoMap.put("status", user.getUserStatus());
+        userInfoMap.put("creatime", user.getCreateTime());
+        userInfoMap.put("Tags", user.getTags());
 
+        // 将用户信息存入Hash，key 格式可自定义，比如"user:info:{userId}"
+        String redisKey = "user:info:" + user.getId();
+        redisTemplate.opsForHash().putAll(redisKey, userInfoMap);
         return safetyUser;
     }
 

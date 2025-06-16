@@ -26,7 +26,10 @@ public class TeamQuery extends pageRequest {
      * 队伍名称
      */
     private String name;
-
+    /**
+     * 同时对队伍名称和描述进行模糊查询
+     */
+    private String searchText;
     /**
      * 描述
      */

@@ -10,6 +10,7 @@ import com.example.yupaobackend.model.domain.Team;
 import com.example.yupaobackend.model.domain.User;
 import com.example.yupaobackend.model.dto.TeamQuery;
 import com.example.yupaobackend.model.request.TeamAddRequest;
+import com.example.yupaobackend.model.vo.TeamUserVo;
 import com.example.yupaobackend.service.TeamService;
 import com.example.yupaobackend.service.UserService;
 import jakarta.annotation.Resource;
@@ -72,15 +73,25 @@ public class TeamController {
         return ResultUtils.success(team);
     }
 
+//    @GetMapping("/list")
+//    public BaseResponse<List<Team>> listTeam(TeamQuery teamQuery) {
+//        if(teamQuery == null){
+//            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+//        }
+//        Team team = new Team();
+//        BeanUtils.copyProperties(team, teamQuery);
+//        QueryWrapper<Team> queryWrapper = new QueryWrapper<>(team);
+//        List<Team> teamList = teamService.list(queryWrapper);
+//        return ResultUtils.success(teamList);
+//    }
+
     @GetMapping("/list")
-    public BaseResponse<List<Team>> listTeam(TeamQuery teamQuery) {
+    public BaseResponse<List<TeamUserVo>> listTeams(TeamQuery teamQuery, HttpServletRequest request) {
         if(teamQuery == null){
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
-        Team team = new Team();
-        BeanUtils.copyProperties(team, teamQuery);
-        QueryWrapper<Team> queryWrapper = new QueryWrapper<>(team);
-        List<Team> teamList = teamService.list(queryWrapper);
+        boolean isAdmin = userService.isAdmin(request);
+        List<TeamUserVo> teamList = teamService.listTeams(teamQuery, isAdmin);
         return ResultUtils.success(teamList);
     }
 

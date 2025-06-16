@@ -3,6 +3,10 @@ package com.example.yupaobackend.service;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.example.yupaobackend.model.domain.Team;
 import com.example.yupaobackend.model.domain.User;
+import com.example.yupaobackend.model.dto.TeamQuery;
+import com.example.yupaobackend.model.vo.TeamUserVo;
+
+import java.util.List;
 
 /**
 * @author hao
@@ -18,4 +22,11 @@ public interface TeamService extends IService<Team> {
      * @return
      */
     long addTeam(Team team, User loginUser);
+
+    /**
+     * 搜索队伍
+     * @param teamQuery
+     * @return
+     */
+    List<TeamUserVo> listTeams(TeamQuery teamQuery, boolean isAdmin);
 }

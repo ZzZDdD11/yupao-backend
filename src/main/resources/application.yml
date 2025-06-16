@@ -13,7 +13,7 @@ spring:
     redis:
       port: 6379
       host: localhost
-      database: 0
+      database: 2
   # seesion配置
   session:
     timeout: 86400
@@ -29,10 +29,16 @@ server:
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: false
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
   global-config:
     db-config:
       table-underline: true # 表名是否使用下划线命名，默认 true
       logic-delete-field: flag
       logic-not-delete-value: 0
       logic-delete-value: 1
+      DEBUG-LOG: true # 是否开启日志打印
+logging:
+  level:
+    org.hibernate.SQL: debug
+    org.hibernate.type.descriptor.sql.BasicBinder: trace
 

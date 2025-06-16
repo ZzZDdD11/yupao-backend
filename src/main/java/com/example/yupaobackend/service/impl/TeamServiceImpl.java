@@ -8,20 +8,27 @@ import com.example.yupaobackend.mapper.TeamMapper;
 import com.example.yupaobackend.model.domain.Team;
 import com.example.yupaobackend.model.domain.User;
 import com.example.yupaobackend.model.domain.UserTeam;
+import com.example.yupaobackend.model.dto.TeamQuery;
 import com.example.yupaobackend.model.enums.TeamStatusEnum;
+import com.example.yupaobackend.model.vo.TeamUserVo;
+import com.example.yupaobackend.model.vo.UserVo;
 import com.example.yupaobackend.service.TeamService;
+import com.example.yupaobackend.service.UserService;
 import com.example.yupaobackend.service.UserTeamService;
 import jakarta.annotation.Resource;
+import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils; // 假设你项目中有这个，或者替换为 StringUtils.hasText
-
+import org.springframework.util.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.util.Date;
-import java.util.Optional;
+import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team>
@@ -31,6 +38,8 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team>
 
     @Resource
     private UserTeamService userTeamService;
+    @Resource
+    private UserService userService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -164,4 +173,140 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team>
         log.info("INFO: 用户队伍关系创建成功。teamId: {}, userId: {}", teamId, userId);
         return teamId;
     }
-}
+
+    /**
+     * 搜索队伍
+     * @param teamQuery
+     * @return
+     */
+    @Override
+    public List<TeamUserVo> listTeams(TeamQuery teamQuery, boolean isAdmin) {
+        // 组合查询条件
+        QueryWrapper<Team> queryWrapper = new QueryWrapper<>();
+
+        // 标记是否尝试过根据特定状态进行查询
+        boolean specificStatusQueryAttempted = false;
+
+        if (teamQuery != null) {
+            Long id = teamQuery.getId();
+            if (id != null && id > 0) {
+                queryWrapper.eq("id", id);
+            }
+
+            // 建议点 1: 审视 searchText 与特定 name/description 的查询逻辑
+            // 当前逻辑是将 searchText 的结果（name 或 description 匹配）与特定 name 和 description 的 LIKE 查询结果进行 AND 操作。
+            // 这可能会导致查询条件过于严格。需要考虑 searchText 是否应该作为独立的查询条件，
+            // 或者明确这些字段之间如何交互。
+            String searchText = teamQuery.getSearchText();
+            if (StringUtils.isNotBlank(searchText)) {
+                queryWrapper.and(wrapper -> wrapper.like("name", searchText).or().like("description", searchText));
+            }
+
+            String name = teamQuery.getName();
+            if (StringUtils.isNotBlank(name)) {
+                queryWrapper.like("name", name);
+            }
+
+            String description = teamQuery.getDescription();
+            if (StringUtils.isNotBlank(description)) {
+                queryWrapper.like("description", description);
+            }
+
+            Integer maxNum = teamQuery.getMaxNum();
+            if (maxNum != null && maxNum > 0) {
+                queryWrapper.eq("maxNum", maxNum);
+            }
+
+            Long userId = teamQuery.getUserId(); // 假设这是队伍创建者的ID
+            if (userId != null && userId > 0) {
+                queryWrapper.eq("userId", userId);
+            }
+
+            // 问题 1 (也是 问题 3 的一部分): 状态查询与授权逻辑
+            Integer statusInput = teamQuery.getStatus();
+            if (statusInput != null) { // 如果查询中明确指定了状态
+                specificStatusQueryAttempted = true;
+                TeamStatusEnum statusEnum = TeamStatusEnum.getByValue(statusInput);
+
+                if (statusEnum == null) { // 如果提供的状态值无效
+                    if (!isAdmin) {
+                        // 非管理员尝试使用无效状态码（这个状态码肯定不是 PUBLIC）进行查询
+                        throw new BusinessException(ErrorCode.NO_AUTH, "查询状态无效或无权限");
+                    }
+                    // 管理员使用无效状态查询；查询会继续，但很可能找不到结果。
+                    queryWrapper.eq("status", statusInput);
+                } else { // 如果提供的状态值有效
+                    if (!isAdmin && !TeamStatusEnum.PUBLIC.equals(statusEnum)) {
+                        throw new BusinessException(ErrorCode.NO_AUTH, "非管理员用户只能查询公开队伍");
+                    }
+                    queryWrapper.eq("status", statusEnum.getValue());
+                }
+            }
+            // 如果 statusInput 为 null，则不会从 teamQuery.getStatus() 应用特定的状态过滤器。
+            // 针对非管理员的通用规则将在该代码块之后应用。
+        }
+
+        // 如果没有通过 teamQuery.getStatus() 查询特定状态，或者 teamQuery 本身为 null，
+        // 则为非管理员应用默认的状态过滤器。
+        // 这是 问题 3 (安全隐患) 的核心修复：确保非管理员总是受限于公开队伍。
+        if (!isAdmin && !specificStatusQueryAttempted) {
+            queryWrapper.eq("status", TeamStatusEnum.PUBLIC.getValue());
+        }
+
+        // 不展示已过期的队伍 (这个过滤条件很好)
+        queryWrapper.and(qw -> qw.gt("expireTime", new Date()).or().isNull("expireTime"));
+
+        List<Team> teamList = this.list(queryWrapper);
+        if (teamList == null) { // 防御性检查，虽然 this.list 通常返回空列表而不是null
+            log.info("Query returned null for teamList.");
+            return new ArrayList<>();
+        }
+        log.info("Fetched teamList size: {}", teamList.size()); // <--- 关键日志点 1
+
+        if (CollectionUtils.isEmpty(teamList)) {
+            return new ArrayList<>();
+        }
+
+        // 问题 2: N+1 查询问题
+        // userService.getById(userId) 在循环中被调用。
+        // 首先收集所有用户ID
+        List<Long> creatorUserIds = teamList.stream()
+                .map(Team::getUserId) // 获取每个队伍的创建者ID
+                .filter(Objects::nonNull) // 过滤掉null的ID
+                .distinct() // 去重
+                .collect(Collectors.toList());
+
+        Map<Long, User> userMap = new HashMap<>();
+        if (!CollectionUtils.isEmpty(creatorUserIds)) {
+            // 假设 userService 有类似 listByIds 的方法，或者你可以适配一个。
+            // 这样可以在一次数据库查询中获取所有需要的用户。
+            List<User> users = userService.listByIds(creatorUserIds);
+            if (users != null) { // 防御性编程，确保 users 列表不为 null
+                userMap = users.stream().collect(Collectors.toMap(User::getId, Function.identity()));
+            }
+        }
+
+        List<TeamUserVo> teamUserVoList = new ArrayList<>();
+        for (Team team : teamList) {
+            Long creatorUserId = team.getUserId(); // 为了清晰，重命名了你的 'userId' 变量
+
+            TeamUserVo teamUserVo = new TeamUserVo();
+            BeanUtils.copyProperties(team, teamUserVo); // 复制队伍基本信息
+
+            if (creatorUserId != null) {
+                User user = userMap.get(creatorUserId); // 从预先获取的 map 中获取用户
+                if (user != null) { // 检查用户是否存在
+                    User safetyUser = userService.getSafetyUser(user); // 用户信息脱敏
+                    if (safetyUser != null) { // 确保脱敏后的用户不为null
+                        UserVo userVo = new UserVo();
+                        BeanUtils.copyProperties(safetyUser, userVo); // 复制脱敏后的用户信息
+                        teamUserVo.setCreateUser(userVo); // 设置创建者信息
+                    }
+                }
+            }
+            teamUserVoList.add(teamUserVo);
+        }
+        return teamUserVoList;
+    }
+
+    }
